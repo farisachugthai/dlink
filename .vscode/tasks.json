@@ -1,0 +1,60 @@
+{
+    "tasks": [
+        {
+            "args": [
+                "${file}"
+            ],
+            "command": "${config:python.pythonPath}",
+            "group": "build",
+            "label": "Run Python",
+            "presentation": {
+                "panel": "new",
+                "reveal": "always"
+            },
+            "problemMatcher": {
+                "fileLocation": "absolute",
+                "pattern": [
+                    {
+                        "file": 1,
+                        "line": 2,
+                        "message": 0,
+                        "regexp": "^\\s+File \"(.*?)\", line ([0-9]+)[,]?.+?$"
+                    },
+                    {
+                        "code": 1,
+                        "regexp": "^\\s+(.+?)$"
+                    }
+                ]
+            },
+            "type": "shell"
+        },
+        {
+            "command": "${config:python.pythonPath} -m pytest",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "label": "pytest",
+            "presentation": {
+                "focus": true,
+                "panel": "new",
+                "reveal": "always"
+            },
+            "type": "shell",
+            "problemMatcher": []
+        },
+        {
+            "command": "${config:python.pythonPath} -m unittest",
+            "group": "build",
+            "label": "unittest",
+            "presentation": {
+                "focus": true,
+                "panel": "new",
+                "reveal": "always"
+            },
+            "type": "shell",
+            "problemMatcher": []
+        }
+    ],
+    "version": "2.0.0"
+}
