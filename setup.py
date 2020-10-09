@@ -39,11 +39,10 @@ setup(
     name='dlink',
     packages=find_packages(
         include=[
-        'dlink',
-    ]),
+            'dlink',
+            ]),
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/farisachugthai/dlink',
     version='0.1.0',
-    zip_safe=False,
 )

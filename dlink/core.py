@@ -9,7 +9,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import Union
+from typing import Generator, List
 
 # from . import __version__
 
@@ -22,7 +22,7 @@ class UsageError(Exception):
             return "{}".format(traceback.format_tb(tb))
 
 
-def _parse_arguments():
+def _parse_arguments() -> argparse.Namespace:
     """Parse arguments given by the user.
 
     Returns
@@ -41,8 +41,6 @@ def _parse_arguments():
 
     parser.add_argument(
         "destination",
-        metavar="destination",
-        nargs="?",
         type=Path,
         help="Files to symlink to.",
     )
@@ -95,7 +93,7 @@ def _parse_arguments():
         dest="log_level",
         choices=[10, 20, 30, 40, 50],
         type=int,
-        help="Log level. If logging is specified with '-l', defaults to INFO.",
+        help="Log level. If logging is specified with '-l', defaults to 30.",
     )
 
     parser.add_argument(
@@ -111,7 +109,7 @@ def _parse_arguments():
         parser.print_help()
         # This is actually annoying
         # raise argparse.ArgumentError(None, "Args not provided.")
-        # sys.exit()
+        sys.exit()
 
     args = parser.parse_args()
 
@@ -131,19 +129,19 @@ def _parse_arguments():
     return args
 
 
-def generate_dest(dest, glob_pattern=None):
+def generate_dest(dest, glob_pattern: str = None):
     """Return a generator for all the files in the destination directory.
 
     Parameters
     ----------
-    dest : str
+    dest : os.PathLike
         Directory to find files in.
     glob_pattern : str, optional
 
     Yields
     ------
     `pathlib.Path`
-        File objects in dir.
+        Full pathnames to file objects in dir.
 
     """
     if not hasattr(dest, "iterdir"):
@@ -164,13 +162,13 @@ def generate_dest(dest, glob_pattern=None):
     return ret
 
 
-def get_basenames(directory: Path, glob_pattern: str = None) -> Union[list, Path]:
+def get_basenames(directory: Path, glob_pattern: str = None) -> List[Path]:
     """Get the basenames of all the files in a directory."""
     if not hasattr(directory, "iterdir"):
         directory = Path(directory)
     if glob_pattern is None:
         glob_pattern = '*'
-    ret = [i for i in directory.glob(glob_pattern)]
+    ret = [i.name for i in directory.glob(glob_pattern)]
     return ret
 
 
@@ -179,9 +177,9 @@ def dlink(destination_dir, source_dir=None, is_recursive=False, glob_pattern=Non
 
     Parameters
     ----------
-    destination_dir : str
+    destination_dir : os.PathLike
         Directory where symlinks point to.
-    source_dir : str, optional
+    source_dir : os.PathLike, optional
         Directory where symlinks are created.
     is_recursive : bool, optional
         Whether to recursively symlink directories beneath the
@@ -190,47 +188,52 @@ def dlink(destination_dir, source_dir=None, is_recursive=False, glob_pattern=Non
         Only symlink files that match a certain pattern.
 
     """
+    # These 2 lines might be unnecessary
     if source_dir is None:
         source_dir = Path.cwd()
-    base_destination_files = sorted(get_basenames(destination_dir, glob_pattern))
+    destination_files = [i for i in generate_dest(destination_dir, glob_pattern)]
 
     if not hasattr(destination_dir, "iterdir"):
         destination_dir = Path(destination_dir)
 
-    full_destination_files = sorted([j for j in generate_dest(destination_dir, glob_pattern)])
-
-    full_source_files = sorted(
-        Path(source_dir).joinpath(i) for i in base_destination_files
-    )
-
-    for idx, src_file in enumerate(full_source_files):
-        logging.debug("\ni is {0!s}".format(src_file))
-        # most useful but way too long
-        # logging.info("\nfull_destination_files is {!s}".format(full_destination_files))
-        logging.debug("\nfull_source_files is {!s}".format(full_source_files))
+    bases = get_basenames(destination_dir)
+    source_files = [source_dir / base for base in bases]
+    for idx, dest_file in enumerate(destination_files):
+        logging.debug("\ni is {0!s}".format(dest_file))
         logging.debug("\nsource_dir is {}".format(source_dir))
-        logging.debug("\nbase_destination_files: {!r}".format(base_destination_files))
-        logging.debug("idx: {}\tsrc_file: {}\t".format(idx, src_file))
-        if full_destination_files[idx].is_dir():
-            src_dir = Path(src_file)
-            if not src_dir.exists():
-                src_dir.mkdir(0o755)
+        if destination_files[idx].is_dir():
+            # Huge todo. Deleted the src_file = line because I realized it wasn't
+            # working the way i need it to. I need it to be src_dir + bases
+            # Also this never checked if we actually wanted anything called recursively
+            # So the logic in all this is really fucked up.
 
-            # then call it recursively
-            if src_file.is_dir():
-                dlink(
-                    destination_dir=src_file,
-                    source_dir=source_dir.joinpath(src_file),
-                    is_recursive=is_recursive,
-                    glob_pattern=glob_pattern,
-                )
+            # src_dir = Path(src_file)
+            # if not src_dir.exists():
+            #     src_dir.mkdir(0o755)
 
+            # # then call it recursively
+            # if src_file.is_dir():
+            #     dlink(
+            #         destination_dir=src_file,
+            #         source_dir=source_dir.joinpath(src_file),
+            #         is_recursive=is_recursive,
+            #         glob_pattern=glob_pattern,
+            #     )
+            raise NotImplementedError
         else:
-            symlink(src_file, full_destination_files[idx])
+            for src_file in source_files:
+                symlink(src_file, destination_files[idx])
 
 
 def symlink(src, dest):
-    """Execute the symlinking part of this."""
+    """Execute the symlinking part of this.
+
+    Parameters
+    ----------
+    src : os.PathLike
+    dest : os.PathLike
+
+    """
     try:
         src.symlink_to(dest)
     except FileExistsError:
@@ -243,12 +246,13 @@ def symlink(src, dest):
                 "{}".format(e) + "Ensure that you are running this script as an admin"
                 " when running on Windows!"
             )
+    except AttributeError:
+        symlink(Path(src), dest)
 
 
 def main():
     """Call :func:`_parse_arguments` and the :func:`dlink` function."""
-    user_arguments = _parse_arguments()
-    args = user_arguments.parse_args()
+    args = _parse_arguments()
 
     if args.destination is None:
         raise UsageError("No destination given")
@@ -258,20 +262,13 @@ def main():
     if not dest.is_dir():
         sys.exit("Provided target not a directory. Exiting.")
 
-    src = args.source or Path().cwd
-
-    try:
-        glob_search = args.glob_pattern
-    except AttributeError:
-        glob_search = None
-
-    try:
-        recursive = args.recursive
-    except AttributeError:
-        recursive = False
-
-    dlink(dest, source_dir=src, is_recursive=recursive, glob_pattern=glob_search)
+    dlink(
+        dest,
+        source_dir=args.source,
+        is_recursive=args.recursive,
+        glob_pattern=args.glob_pattern,
+    )
 
 
 if __name__ == "__main__":
-    (main())
+    sys.exit(main())

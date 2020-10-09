@@ -3,20 +3,7 @@
     "telemetry.enableTelemetry": false,
     "merge-conflict.autoNavigateNextConflict.enabled": true,
     "python.linting.pylintEnabled": false,
-{% if cookiecutter.use_pytest == 'y' -%}
     "python.testing.pytestEnabled": true,
     "python.testing.nosetestsEnabled": false,
-    "python.testing.unittestEnabled": false,
-{% else %}
-    "python.testing.pytestEnabled": false,
-    "python.testing.nosetestsEnabled": false,
-    "python.testing.unittestEnabled": true,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        "./test",
-        "-p",
-        "test*.py"
-    ]
-{%- endif %}
+    "python.testing.unittestEnabled": false
 }
