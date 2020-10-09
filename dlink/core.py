@@ -129,8 +129,10 @@ def _parse_arguments() -> argparse.Namespace:
     return args
 
 
-def generate_dest(dest, glob_pattern: str = None):
-    """Return a generator for all the files in the destination directory.
+def generate_dest(dest, glob_pattern: str = None) -> List[Path]:
+    """Return a list for all the files in the destination directory.
+
+    Not very different than running ``ls`` in a bash shell.
 
     Parameters
     ----------
@@ -138,8 +140,8 @@ def generate_dest(dest, glob_pattern: str = None):
         Directory to find files in.
     glob_pattern : str, optional
 
-    Yields
-    ------
+    Returns
+    -------
     `pathlib.Path`
         Full pathnames to file objects in dir.
 
@@ -162,7 +164,7 @@ def generate_dest(dest, glob_pattern: str = None):
     return ret
 
 
-def get_basenames(directory: Path, glob_pattern: str = None) -> List[Path]:
+def get_basenames(directory: Path, glob_pattern: str = None) -> List[str]:
     """Get the basenames of all the files in a directory."""
     if not hasattr(directory, "iterdir"):
         directory = Path(directory)
@@ -191,38 +193,28 @@ def dlink(destination_dir, source_dir=None, is_recursive=False, glob_pattern=Non
     # These 2 lines might be unnecessary
     if source_dir is None:
         source_dir = Path.cwd()
-    destination_files = [i for i in generate_dest(destination_dir, glob_pattern)]
-
     if not hasattr(destination_dir, "iterdir"):
         destination_dir = Path(destination_dir)
 
     bases = get_basenames(destination_dir)
-    source_files = [source_dir / base for base in bases]
-    for idx, dest_file in enumerate(destination_files):
-        logging.debug("\ni is {0!s}".format(dest_file))
-        logging.debug("\nsource_dir is {}".format(source_dir))
-        if destination_files[idx].is_dir():
-            # Huge todo. Deleted the src_file = line because I realized it wasn't
-            # working the way i need it to. I need it to be src_dir + bases
-            # Also this never checked if we actually wanted anything called recursively
-            # So the logic in all this is really fucked up.
+    for base in bases:
+        dest_file = destination_dir / base
+        src_file = source_dir / base
+        logging.debug("\ndest_file is {0!s}".format(dest_file))
+        logging.debug("\nsrc_file is {}".format(src_file))
+        if dest_file.is_dir():
+            if not src_file.exists():
+                src_file.mkdir(0o755)
 
-            # src_dir = Path(src_file)
-            # if not src_dir.exists():
-            #     src_dir.mkdir(0o755)
-
-            # # then call it recursively
-            # if src_file.is_dir():
-            #     dlink(
-            #         destination_dir=src_file,
-            #         source_dir=source_dir.joinpath(src_file),
-            #         is_recursive=is_recursive,
-            #         glob_pattern=glob_pattern,
-            #     )
-            raise NotImplementedError
+            if src_file.is_dir():
+                dlink(
+                    destination_dir=dest_file,
+                    source_dir=src_file,
+                    is_recursive=is_recursive,
+                    glob_pattern=glob_pattern,
+                )
         else:
-            for src_file in source_files:
-                symlink(src_file, destination_files[idx])
+            symlink(src_file, dest_file)
 
 
 def symlink(src, dest):
