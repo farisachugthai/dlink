@@ -130,7 +130,7 @@ def _parse_arguments() -> argparse.Namespace:
     return args
 
 
-def generate_dest(dest, glob_pattern: str = None) -> List[Path]:
+def generate_dest(dest: Path, glob_pattern: str = None) -> List[Path]:
     """Return a list for all the files in the destination directory.
 
     Not very different than running ``ls`` in a bash shell.
@@ -161,7 +161,7 @@ def generate_dest(dest, glob_pattern: str = None) -> List[Path]:
     if glob_pattern is None:
         glob_pattern = '*'
     ret = [i for i in dest.glob(glob_pattern)]
-    return ret
+    return sorted(ret)
 
 
 def get_basenames(directory: Path, glob_pattern: str = None) -> List[str]:
