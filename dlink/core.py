@@ -8,8 +8,9 @@ import argparse
 import logging
 import sys
 import traceback
+from os import PathLike
 from pathlib import Path
-from typing import Generator, List
+from typing import List, Optional
 
 # from . import __version__
 
@@ -144,7 +145,6 @@ def generate_dest(dest, glob_pattern: str = None) -> List[Path]:
     -------
     `pathlib.Path`
         Full pathnames to file objects in dir.
-
     """
     if not hasattr(dest, "iterdir"):
         dest = Path(dest)
@@ -165,30 +165,43 @@ def generate_dest(dest, glob_pattern: str = None) -> List[Path]:
 
 
 def get_basenames(directory: Path, glob_pattern: str = None) -> List[str]:
-    """Get the basenames of all the files in a directory."""
+    """Get the basenames of all the files in a directory.
+
+    Parameters
+    ----------
+    directory : Path
+        Directory to check
+    glob_pattern : str, optional
+        Pattern to check before symlinking to a file.
+    """
     if not hasattr(directory, "iterdir"):
         directory = Path(directory)
     if glob_pattern is None:
         glob_pattern = '*'
+    logging.info("Finding all files in ", directory)
     ret = [i.name for i in directory.glob(glob_pattern)]
     return ret
 
 
-def dlink(destination_dir, source_dir=None, is_recursive=False, glob_pattern=None):
+def dlink(
+    destination_dir: Path,
+    source_dir: Optional[Path] = None,
+    is_recursive: bool = False,
+    glob_pattern: str = None
+) -> None:
     """Symlink user provided files.
 
     Parameters
     ----------
-    destination_dir : os.PathLike
+    destination_dir : Path
         Directory where symlinks point to.
-    source_dir : os.PathLike, optional
+    source_dir : Path, optional
         Directory where symlinks are created.
     is_recursive : bool, optional
         Whether to recursively symlink directories beneath the
         `destination_dir`. Defaults to False.
     glob_pattern : str
         Only symlink files that match a certain pattern.
-
     """
     # These 2 lines might be unnecessary
     if source_dir is None:
@@ -202,29 +215,27 @@ def dlink(destination_dir, source_dir=None, is_recursive=False, glob_pattern=Non
         src_file = source_dir / base
         logging.debug("\ndest_file is {0!s}".format(dest_file))
         logging.debug("\nsrc_file is {}".format(src_file))
-        if dest_file.is_dir():
-            if not src_file.exists():
-                src_file.mkdir(0o755)
+        if dest_file.is_dir() and not src_file.exists():
+            src_file.mkdir(0o755)
 
-            if src_file.is_dir():
-                dlink(
-                    destination_dir=dest_file,
-                    source_dir=src_file,
-                    is_recursive=is_recursive,
-                    glob_pattern=glob_pattern,
-                )
+        if src_file.is_dir() and is_recursive:
+            dlink(
+                destination_dir=dest_file,
+                source_dir=src_file,
+                is_recursive=is_recursive,
+                glob_pattern=glob_pattern,
+            )
         else:
             symlink(src_file, dest_file)
 
 
-def symlink(src, dest):
+def symlink(src: Path, dest: PathLike) -> None:
     """Execute the symlinking part of this.
 
     Parameters
     ----------
-    src : os.PathLike
+    src : Path
     dest : os.PathLike
-
     """
     try:
         src.symlink_to(dest)
@@ -242,9 +253,16 @@ def symlink(src, dest):
         symlink(Path(src), dest)
 
 
-def main():
-    """Call :func:`_parse_arguments` and the :func:`dlink` function."""
-    args = _parse_arguments()
+def main(args=None) -> None:
+    """Call :func:`_parse_arguments` and the :func:`dlink` function.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Shouldn't be used by end users. Exists for test purposes.
+    """
+    if args is None:
+        args = _parse_arguments()
 
     if args.destination is None:
         raise UsageError("No destination given")
