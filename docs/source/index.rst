@@ -9,6 +9,7 @@ Welcome to dlink's documentation!
 
    installation
    usage
+   API <api/dlink>
    contributing
    history
 
