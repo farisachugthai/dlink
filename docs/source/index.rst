@@ -1,7 +1,7 @@
 Welcome to dlink's documentation!
 ===========================================================
 
-.. include:: ../README.rst
+.. include:: ../../README.rst
 
 .. toctree::
    :maxdepth: 2
